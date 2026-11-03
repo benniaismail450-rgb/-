@@ -10,8 +10,11 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9183110084:AAEzpNrZtyZnRUN
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 app = flask.Flask(__name__)
 
-# تخزين مؤقت لصور المستخدمين
 user_images = {}
+
+@app.route("/")
+def index():
+    return "Background Removal Bot is running successfully!", 200
 
 @app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=['POST'])
 def webhook():
@@ -30,7 +33,6 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text)
 
-# استقبال الصورة وإزالة خلفيتها
 @bot.message_handler(content_types=['photo'])
 def handle_image(message):
     chat_id = message.chat.id
@@ -61,7 +63,6 @@ def handle_image(message):
     except Exception as e:
         bot.reply_to(message, f"عذراً، حدث خطأ أثناء معالجة الصورة: {str(e)}")
 
-# اختيار الرقم وتطبيق الخلفية
 @bot.message_handler(func=lambda message: message.text and message.text.isdigit())
 def apply_background(message):
     chat_id = message.chat.id
@@ -78,16 +79,16 @@ def apply_background(message):
     bot.send_chat_action(chat_id, 'upload_photo')
     
     background_colors = {
-        1: (24, 119, 242),   # أزرق
-        2: (217, 48, 37),    # أحمر
-        3: (52, 168, 83),    # أخضر
-        4: (20, 20, 20),     # أسود
-        5: (128, 128, 128),  # رمادي
-        6: (255, 109, 0),    # برتقالي
-        7: (103, 58, 183),   # بنفسجي
-        8: (3, 169, 244),    # سماوي
-        9: (255, 215, 0),    # ذهبي
-        10: (233, 30, 99)    # وردي
+        1: (24, 119, 242),
+        2: (217, 48, 37),
+        3: (52, 168, 83),
+        4: (20, 20, 20),
+        5: (128, 128, 128),
+        6: (255, 109, 0),
+        7: (103, 58, 183),
+        8: (3, 169, 244),
+        9: (255, 215, 0),
+        10: (233, 30, 99)
     }
     
     try:
