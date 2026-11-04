@@ -36,12 +36,10 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text)
 
-# استقبال الصورة (سواء أُرسلت كصورة عادية أو كملف/مستند)
 @bot.message_handler(content_types=['photo', 'document'])
 def handle_image(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "⏳ ججارِ معالجة الصورة وإزالة الخلفية بالذكاء الاصطناعي، يرجى الانتظار ثواني معدودة...")
-    bot.send_chat_action(chat_id, 'typing')
+    processing_msg = bot.send_message(chat_id, "⏳ جارِ استلام الصورة والبدء بمعالجتها...")
     
     try:
         if message.content_type == 'photo':
@@ -52,10 +50,17 @@ def handle_image(message):
         downloaded_file = bot.download_file(file_info.file_path)
         
         input_image = Image.open(io.BytesIO(downloaded_file))
-        output_image = remove(input_image)
         
+        # إزالة الخلفية
+        output_image = remove(input_image)
         user_images[chat_id] = output_image
         
+        # حذف رسالة الانتظار وإرسال النتيجة
+        try:
+            bot.delete_message(chat_id, processing_msg.message_id)
+        except:
+            pass
+            
         bot.send_photo(chat_id, output_image, caption="✂️ **تمت إزالة الخلفية بنجاح!**\n\n"
                                                   "الآن اختر رقماً من 1 إلى 10 لتطبيق الخلفية الجديدة:\n\n"
                                                   "1️⃣ خلفية أزرق فيسبوك\n"
@@ -70,7 +75,7 @@ def handle_image(message):
                                                   "🔟 خلفية وردي هادئ\n\n"
                                                   "👇 **أرسل الرقم فقط الآن (من 1 إلى 10):**", parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ عذراً، حدث خطأ أثناء معالجة الصورة:\n`{str(e)}`", parse_mode="Markdown")
+        bot.reply_to(message, f"❌ حدث خطأ أثناء المعالجة:\n`{str(e)}`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text and message.text.isdigit())
 def apply_background(message):
@@ -85,8 +90,6 @@ def apply_background(message):
         bot.reply_to(message, "❌ أرجو إرسال رقم صحيح من 1 إلى 10 فقط.")
         return
         
-    bot.send_chat_action(chat_id, 'upload_photo')
-    
     background_colors = {
         1: (24, 119, 242),
         2: (217, 48, 37),
@@ -122,7 +125,6 @@ if __name__ == "__main__":
     if RENDER_URL:
         bot.remove_webhook()
         bot.set_webhook(url=f"{RENDER_URL}/webhook")
-        print(f"Webhook set to: {RENDER_URL}/webhook")
         
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
