@@ -3,7 +3,7 @@ import flask
 import telebot
 import requests
 from PIL import Image
-from rembg import remove
+from rembg import remove, new_session
 import io
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9183110084:AAEzpNrZtyZnRUNEvNDHyh1GmLoq6rbz9xw").strip()
@@ -11,6 +11,12 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 app = flask.Flask(__name__)
 
 user_images = {}
+
+# إنشاء جلسة خفيفة ومستقرة لتجنب انقطاع الاتصال
+try:
+    session = new_session("u2netp") # نموذج خفيف وصغير جداً ومناسب للاستضافة المجانية
+except:
+    session = None
 
 @app.route("/")
 def index():
@@ -47,15 +53,19 @@ def handle_image(message):
         else:
             file_info = bot.get_file(message.document.file_id)
             
-        downloaded_file = bot.download_file(file_info.file_path)
+        file_path = file_info.file_path
+        downloaded_file = bot.download_file(file_path)
         
         input_image = Image.open(io.BytesIO(downloaded_file))
         
-        # إزالة الخلفية
-        output_image = remove(input_image)
+        # إزالة الخلفية باستخدام الجلسة المستقرة
+        if session:
+            output_image = remove(input_image, session=session)
+        else:
+            output_image = remove(input_image)
+            
         user_images[chat_id] = output_image
         
-        # حذف رسالة الانتظار وإرسال النتيجة
         try:
             bot.delete_message(chat_id, processing_msg.message_id)
         except:
