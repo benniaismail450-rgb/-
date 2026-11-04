@@ -14,14 +14,18 @@ user_images = {}
 
 @app.route("/")
 def index():
-    return "Background Removal Bot is running successfully!", 200
+    return "Image Processing Bot is active!", 200
 
-@app.route(f"/{TELEGRAM_BOT_TOKEN}", methods=['POST'])
+# استقبال التحديثات من تيليجرام عبر مسار ثابت ومضمون
+@app.route("/webhook", methods=['POST'])
 def webhook():
-    json_string = flask.request.get_data().decode('utf-8')
-    update = telebot.types.Update.de_json(json_string)
-    bot.process_new_updates([update])
-    return "!", 200
+    if flask.request.headers.get('content-type') == 'application/json':
+        json_string = flask.request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return "OK", 200
+    else:
+        return "Forbidden", 403
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -112,8 +116,9 @@ if __name__ == "__main__":
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     if RENDER_URL:
         bot.remove_webhook()
-        bot.set_webhook(url=f"{RENDER_URL}/{TELEGRAM_BOT_TOKEN}")
-        print(f"Webhook set to: {RENDER_URL}/{TELEGRAM_BOT_TOKEN}")
+        # ربط الويب هوك بالمسار الثابت /webhook
+        bot.set_webhook(url=f"{RENDER_URL}/webhook")
+        print(f"Webhook set to: {RENDER_URL}/webhook")
         
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
