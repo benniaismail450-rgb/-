@@ -2,6 +2,7 @@ import os
 import flask
 import telebot
 from PIL import Image
+from rembg import remove
 import io
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9183110084:AAEzpNrZtyZnRUNEvNDHyh1GmLoq6rbz9xw").strip()
@@ -27,16 +28,17 @@ def webhook():
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
-        "مرحباً بك يا إسماعيل في بوت تعديل الخلفيات السريع! 🖼️✨\n\n"
+        "مرحباً بك يا إسماعيل في بوت إزالة وتغيير الخلفيات الذكي! 🖼️✨\n\n"
         "1️⃣ أرسل لي أي صورة شخصية.\n"
-        "2️⃣ سأستقبلها فوراً وأعطيك قائمة بـ 10 خلفيات ملونة رائعة لتطبيقها بنقرة واحدة!"
+        "2️⃣ سأقوم بإزالة خلفيتها الأصلية تماماً بالذكاء الاصطناعي.\n"
+        "3️⃣ سأعطيك قائمة بـ 10 ألوان خلفيات، ترسل الرقم وتأخذ صورتك بالخلفية الجديدة!"
     )
     bot.reply_to(message, welcome_text)
 
 @bot.message_handler(content_types=['photo', 'document'])
 def handle_image(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "⏳ جارِ استلام الصورة وتجهيز الخيارات...")
+    bot.send_message(chat_id, "⏳ جارِ إزالة الخلفية الأصلية بالذكاء الاصطناعي...")
     
     try:
         if message.content_type == 'photo':
@@ -46,11 +48,13 @@ def handle_image(message):
             
         downloaded_file = bot.download_file(file_info.file_path)
         
-        # حفظ الصورة بحجم مناسب وسريع المعالجة
-        input_image = Image.open(io.BytesIO(downloaded_file)).convert("RGBA")
-        user_images[chat_id] = input_image
+        input_image = Image.open(io.BytesIO(downloaded_file))
         
-        bot.send_photo(chat_id, input_image, caption="✂️ **تم استلام الصورة بنجاح!**\n\n"
+        # إزالة الخلفية الحقيقية وتحويلها إلى صورة شفافة (RGBA)
+        output_image = remove(input_image)
+        user_images[chat_id] = output_image.convert("RGBA")
+        
+        bot.send_photo(chat_id, output_image, caption="✂️ **تمت إزالة الخلفية بنجاح!**\n\n"
                                                   "الآن اختر رقماً من 1 إلى 10 لتطبيق الخلفية الملونة الجديدة:\n\n"
                                                   "1️⃣ خلفية أزرق فيسبوك\n"
                                                   "2️⃣ خلفية أحمر فخم\n"
@@ -64,7 +68,7 @@ def handle_image(message):
                                                   "🔟 خلفية وردي هادئ\n\n"
                                                   "👇 **أرسل الرقم فقط الآن (من 1 إلى 10):**", parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ حدث خطأ:\n`{str(e)}`", parse_mode="Markdown")
+        bot.reply_to(message, f"❌ حدث خطأ أثناء إزالة الخلفية:\n`{str(e)}`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text and message.text.isdigit())
 def apply_background(message):
@@ -80,24 +84,24 @@ def apply_background(message):
         return
         
     background_colors = {
-        1: (24, 119, 242, 255),
-        2: (217, 48, 37, 255),
-        3: (52, 168, 83, 255),
-        4: (20, 20, 20, 255),
-        5: (128, 128, 128, 255),
-        6: (255, 109, 0, 255),
-        7: (103, 58, 183, 255),
-        8: (3, 169, 244, 255),
-        9: (255, 215, 0, 255),
-        10: (233, 30, 99, 255)
+        1: (24, 119, 242),
+        2: (217, 48, 37),
+        3: (52, 168, 83),
+        4: (20, 20, 20),
+        5: (128, 128, 128),
+        6: (255, 109, 0),
+        7: (103, 58, 183),
+        8: (3, 169, 244),
+        9: (255, 215, 0),
+        10: (233, 30, 99)
     }
     
     try:
         fore_img = user_images[chat_id]
         bg_color = background_colors[choice]
         
-        # دمج ذكي وسريع لخلفية ملونة بالكامل خلف الصورة
-        bg_img = Image.new("RGBA", fore_img.size, bg_color)
+        # إنشاء خلفية ملونة جديدة بالكامل ودمج الصورة الشخصية فوقها
+        bg_img = Image.new("RGBA", fore_img.size, bg_color + (255,))
         combined = Image.alpha_composite(bg_img, fore_img)
         final_img = combined.convert("RGB")
         
