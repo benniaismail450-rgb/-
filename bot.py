@@ -16,7 +16,6 @@ user_images = {}
 def index():
     return "Image Processing Bot is active!", 200
 
-# استقبال التحديثات من تيليجرام عبر مسار ثابت ومضمون
 @app.route("/webhook", methods=['POST'])
 def webhook():
     if flask.request.headers.get('content-type') == 'application/json':
@@ -37,13 +36,19 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text)
 
-@bot.message_handler(content_types=['photo'])
+# استقبال الصورة (سواء أُرسلت كصورة عادية أو كملف/مستند)
+@bot.message_handler(content_types=['photo', 'document'])
 def handle_image(message):
     chat_id = message.chat.id
+    bot.send_message(chat_id, "⏳ ججارِ معالجة الصورة وإزالة الخلفية بالذكاء الاصطناعي، يرجى الانتظار ثواني معدودة...")
     bot.send_chat_action(chat_id, 'typing')
     
     try:
-        file_info = bot.get_file(message.photo[-1].file_id)
+        if message.content_type == 'photo':
+            file_info = bot.get_file(message.photo[-1].file_id)
+        else:
+            file_info = bot.get_file(message.document.file_id)
+            
         downloaded_file = bot.download_file(file_info.file_path)
         
         input_image = Image.open(io.BytesIO(downloaded_file))
@@ -65,7 +70,7 @@ def handle_image(message):
                                                   "🔟 خلفية وردي هادئ\n\n"
                                                   "👇 **أرسل الرقم فقط الآن (من 1 إلى 10):**", parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"عذراً، حدث خطأ أثناء معالجة الصورة: {str(e)}")
+        bot.reply_to(message, f"❌ عذراً، حدث خطأ أثناء معالجة الصورة:\n`{str(e)}`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text and message.text.isdigit())
 def apply_background(message):
@@ -116,7 +121,6 @@ if __name__ == "__main__":
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
     if RENDER_URL:
         bot.remove_webhook()
-        # ربط الويب هوك بالمسار الثابت /webhook
         bot.set_webhook(url=f"{RENDER_URL}/webhook")
         print(f"Webhook set to: {RENDER_URL}/webhook")
         
