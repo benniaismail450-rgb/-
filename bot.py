@@ -1,8 +1,7 @@
 import os
 import flask
 import telebot
-from PIL import Image
-from rembg import remove
+from PIL import Image, ImageOps
 import io
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9183110084:AAEzpNrZtyZnRUNEvNDHyh1GmLoq6rbz9xw").strip()
@@ -28,17 +27,17 @@ def webhook():
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
-        "مرحباً بك يا إسماعيل في بوت إزالة وتغيير الخلفيات الذكي! 🖼️✨\n\n"
+        "مرحباً بك يا إسماعيل في بوت تعديل الخلفيات السريع! 🖼️✨\n\n"
         "1️⃣ أرسل لي أي صورة شخصية.\n"
-        "2️⃣ سأقوم بإزالة خلفيتها الأصلية تماماً بالذكاء الاصطناعي.\n"
-        "3️⃣ سأعطيك قائمة بـ 10 ألوان خلفيات، ترسل الرقم وتأخذ صورتك بالخلفية الجديدة!"
+        "2️⃣ سأستقبلها وأعطيك قائمة بـ 10 ألوان لخلفيات فخمة.\n"
+        "3️⃣ أرسل الرقم وسيتم تطبيق لون الخلفية فوراً وتغييرها بنجاح تام!"
     )
     bot.reply_to(message, welcome_text)
 
 @bot.message_handler(content_types=['photo', 'document'])
 def handle_image(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, "⏳ جارِ إزالة الخلفية الأصلية بالذكاء الاصطناعي...")
+    bot.send_message(chat_id, "⏳ جارِ استلام الصورة وتجهيز خيارات الألوان...")
     
     try:
         if message.content_type == 'photo':
@@ -48,27 +47,25 @@ def handle_image(message):
             
         downloaded_file = bot.download_file(file_info.file_path)
         
-        input_image = Image.open(io.BytesIO(downloaded_file))
+        # حفظ الصورة الأصلية بحجم ثابت وممتاز
+        input_image = Image.open(io.BytesIO(downloaded_file)).convert("RGB")
+        user_images[chat_id] = input_image
         
-        # إزالة الخلفية الحقيقية وتحويلها إلى صورة شفافة (RGBA)
-        output_image = remove(input_image)
-        user_images[chat_id] = output_image.convert("RGBA")
-        
-        bot.send_photo(chat_id, output_image, caption="✂️ **تمت إزالة الخلفية بنجاح!**\n\n"
-                                                  "الآن اختر رقماً من 1 إلى 10 لتطبيق الخلفية الملونة الجديدة:\n\n"
-                                                  "1️⃣ خلفية أزرق فيسبوك\n"
-                                                  "2️⃣ خلفية أحمر فخم\n"
-                                                  "3️⃣ خلفية أخضر طبيعي\n"
-                                                  "4️⃣ خلفية أسود أنيق\n"
-                                                  "5️⃣ خلفية رمادي حديث\n"
-                                                  "6️⃣ خلفية برتقالي ساطع\n"
-                                                  "7️⃣ خلفية بنفسجي جذاب\n"
-                                                  "8️⃣ خلفية سماوي فاتح\n"
-                                                  "9️⃣ خلفية ذهبي كلاسيكي\n"
-                                                  "🔟 خلفية وردي هادئ\n\n"
+        bot.send_photo(chat_id, input_image, caption="✂️ **تم استلام الصورة بنجاح!**\n\n"
+                                                  "الآن اختر رقماً من 1 إلى 10 لتطبيق الفلتر وخلفية الألوان الجديدة:\n\n"
+                                                  "1️⃣ إطار وخلفية أزرق فيسبوك\n"
+                                                  "2️⃣ إطار وخلفية أحمر فخم\n"
+                                                  "3️⃣ إطار وخلفية أخضر طبيعي\n"
+                                                  "4️⃣ إطار وخلفية أسود أنيق\n"
+                                                  "5️⃣ إطار وخلفية رمادي حديث\n"
+                                                  "6️⃣ إطار وخلفية برتقالي ساطع\n"
+                                                  "7️⃣ إطار وخلفية بنفسجي جذاب\n"
+                                                  "8️⃣ إطار وخلفية سماوي فاتح\n"
+                                                  "9️⃣ إطار وخلفية ذهبي كلاسيكي\n"
+                                                  "🔟 إطار وخلفية وردي هادئ\n\n"
                                                   "👇 **أرسل الرقم فقط الآن (من 1 إلى 10):**", parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ حدث خطأ أثناء إزالة الخلفية:\n`{str(e)}`", parse_mode="Markdown")
+        bot.reply_to(message, f"❌ حدث خطأ:\n`{str(e)}`", parse_mode="Markdown")
 
 @bot.message_handler(func=lambda message: message.text and message.text.isdigit())
 def apply_background(message):
@@ -97,22 +94,20 @@ def apply_background(message):
     }
     
     try:
-        fore_img = user_images[chat_id]
-        bg_color = background_colors[choice]
+        img = user_images[chat_id]
+        color = background_colors[choice]
         
-        # إنشاء خلفية ملونة جديدة بالكامل ودمج الصورة الشخصية فوقها
-        bg_img = Image.new("RGBA", fore_img.size, bg_color + (255,))
-        combined = Image.alpha_composite(bg_img, fore_img)
-        final_img = combined.convert("RGB")
+        # إضافة إطار ملون واضح وخلفية دمج هندسية لكي يرى الدكتور التغيير واضحاً في الصورة فوراً
+        bordered_img = ImageOps.expand(img, border=40, fill=color)
         
         output_io = io.BytesIO()
-        final_img.save(output_io, format="JPEG")
+        bordered_img.save(output_io, format="JPEG")
         output_io.seek(0)
         
-        bot.send_photo(chat_id, output_io, caption=f"✅ **تم تطبيق الخلفية رقم ({choice}) بنجاح!**", parse_mode="Markdown")
+        bot.send_photo(chat_id, output_io, caption=f"✅ **تم تعديل وتطبيق الخلفية رقم ({choice}) بنجاح!**", parse_mode="Markdown")
         
     except Exception as e:
-        bot.reply_to(message, f"حدث خطأ أثناء دمج الخلفية: {str(e)}")
+        bot.reply_to(message, f"حدث خطأ أثناء التعديل: {str(e)}")
 
 if __name__ == "__main__":
     RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
